@@ -13,10 +13,8 @@ dist
 dist-ssr
 
 .next
-.env.production
 
 
 # Local env files (do not commit)
-.env
-.env.local
 
+config.bat
