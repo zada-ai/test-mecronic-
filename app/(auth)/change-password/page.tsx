@@ -5,9 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { apiFetch } from '@/lib/api';
 import { AlertCircle, Check, Eye, EyeOff } from 'lucide-react';
-import { useForm } from 'react-hook-form';
-// import { apiFetch } from '@/lib/api';
-import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
+import { useForm } from 'react-hook-form';import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
   Form,
