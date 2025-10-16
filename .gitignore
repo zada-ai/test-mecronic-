@@ -14,4 +14,9 @@ dist-ssr
 
 .next
 .env.production
-/lib/generated/prisma
+
+
+# Local env files (do not commit)
+.env
+.env.local
+
