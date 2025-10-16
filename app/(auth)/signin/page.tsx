@@ -56,7 +56,7 @@ export default function Page() {
 
       // on success, navigate
       router.push('/dashboard');
-    } catch (err) {
+    } catch {
       setError('Something went wrong');
     } finally {
       setIsProcessing(false);

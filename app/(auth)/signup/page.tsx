@@ -81,7 +81,7 @@ export default function Page() {
 
     setSuccess(true);
     setIsProcessing(false);
-  } catch (err: any) {
+  } catch {
     setError('Something went wrong');
     setIsProcessing(false);
   }

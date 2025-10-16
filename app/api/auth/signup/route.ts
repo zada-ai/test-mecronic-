@@ -1,17 +1,24 @@
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcrypt';
+import { hash } from 'bcrypt';
 import prisma from '@/lib/db';
 
 export async function POST(req: Request) {
   try {
-    let body: any;
+    let body: unknown;
     try {
       body = await req.json();
-    } catch (err) {
+    } catch {
       return NextResponse.json({ error: 'Invalid or empty JSON body' }, { status: 400 });
     }
 
-    const { name, email, password } = body || {};
+    if (typeof body !== 'object' || body === null) {
+      return NextResponse.json({ error: 'Invalid or empty JSON body' }, { status: 400 });
+    }
+
+    const parsed = body as Record<string, unknown>;
+    const name = typeof parsed.name === 'string' ? parsed.name : undefined;
+    const email = typeof parsed.email === 'string' ? parsed.email : undefined;
+    const password = typeof parsed.password === 'string' ? parsed.password : undefined;
 
     if (!name || !email || !password) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
@@ -29,7 +36,7 @@ export async function POST(req: Request) {
       }
 
       // hash password
-      const hashedPassword = await bcrypt.hash(password, 10);
+  const hashedPassword = await hash(password, 10);
 
       // create new user
       const user = await prisma.user.create({
@@ -41,13 +48,16 @@ export async function POST(req: Request) {
       });
 
       // don't return the password hash to the client
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password: _p, ...safeUser } = user as any;
+      const userObj = { ...(user as Record<string, unknown>) };
+      delete (userObj as Record<string, unknown>).password;
+      const safeUser = userObj;
 
       return NextResponse.json({ message: 'User created successfully', user: safeUser }, { status: 201 });
-    } catch (prismaErr: any) {
+    } catch (prismaErr) {
       // If Prisma failed because the DB isn't reachable, fall back to Supabase REST (HTTPS)
-      const prismaErrMsg = String(prismaErr?.message || prismaErr);
+      let prismaErrMsg = '';
+      if (prismaErr instanceof Error) prismaErrMsg = prismaErr.message;
+      else prismaErrMsg = String(prismaErr);
       const isConnectionError = prismaErrMsg.includes("Can't reach database server") || prismaErrMsg.includes('P1001');
 
       if (!isConnectionError) {
@@ -66,12 +76,12 @@ export async function POST(req: Request) {
 
       // Safe debug: log masked service role key info (first/last 6 chars and length) so we can
       // confirm the server loaded the expected key without printing the secret.
-      try {
+  try {
         const k = String(SUPABASE_SERVICE_ROLE_KEY);
         const head = k.slice(0, 6);
         const tail = k.slice(-6);
         console.log(`Supabase service key loaded: head=${head} tail=${tail} len=${k.length}`);
-      } catch (e) {
+      } catch {
         console.log('Supabase service key present but could not be inspected');
       }
 
@@ -99,7 +109,7 @@ export async function POST(req: Request) {
         }
 
         // hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
+  const hashedPassword = await hash(password, 10);
 
         // Insert via Supabase REST
         const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/users`, {
@@ -128,12 +138,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Fallback to Supabase failed' }, { status: 502 });
       }
     }
-
-    // don't return the password hash to the client
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _p, ...safeUser } = user as any;
-
-    return NextResponse.json({ message: 'User created successfully', user: safeUser }, { status: 201 });
   } catch (error) {
     console.error(error);
     return NextResponse.json(

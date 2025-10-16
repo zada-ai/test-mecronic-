@@ -1,17 +1,24 @@
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcrypt';
+import { compare } from 'bcrypt';
 import prisma from '@/lib/db';
 
 export async function POST(req: Request) {
   try {
-    let body: any;
+    let body: unknown;
     try {
       body = await req.json();
-    } catch (err) {
+    } catch {
       return NextResponse.json({ error: 'Invalid or empty JSON body' }, { status: 400 });
     }
 
-    const { email, password } = body || {};
+    if (typeof body !== 'object' || body === null) {
+      return NextResponse.json({ error: 'Invalid or empty JSON body' }, { status: 400 });
+    }
+
+    const parsed = body as Record<string, unknown>;
+    const email = typeof parsed.email === 'string' ? parsed.email : undefined;
+    const password = typeof parsed.password === 'string' ? parsed.password : undefined;
+
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
@@ -23,15 +30,24 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
       }
 
-      const match = await bcrypt.compare(password, user.password);
+  // safely extract password from the returned user object
+  const userWithPassword = user as unknown as { password?: string };
+  const hashedPassword = typeof userWithPassword.password === 'string' ? userWithPassword.password : '';
+  const match = await compare(password, hashedPassword);
       if (!match) {
         return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
       }
-
-      const { password: _p, ...safeUser } = user as any;
+      // remove password before returning user data
+      const userObj = { ...(user as Record<string, unknown>) };
+      delete (userObj as Record<string, unknown>).password;
+      const safeUser = userObj;
       return NextResponse.json({ message: 'Signed in', user: safeUser }, { status: 200 });
-    } catch (prismaErr: any) {
-      const prismaErrMsg = String(prismaErr?.message || prismaErr);
+    } catch (prismaErr) {
+      // prismaErr is unknown here — normalize to a string safely
+      let prismaErrMsg = '';
+      if (prismaErr instanceof Error) prismaErrMsg = prismaErr.message;
+      else prismaErrMsg = String(prismaErr);
+
       const isConnectionError = prismaErrMsg.includes("Can't reach database server") || prismaErrMsg.includes('P1001');
       if (!isConnectionError) {
         console.error('Prisma signin error:', prismaErr);
@@ -69,7 +85,7 @@ export async function POST(req: Request) {
 
         const user = rows[0];
         const hashed = user.password;
-        const match = await bcrypt.compare(password, hashed);
+  const match = await compare(password, hashed);
         if (!match) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
 
         const safeUser = { id: user.id ?? null, name: user.name, email: user.email, createdAt: user.created_at ?? new Date().toISOString() };
