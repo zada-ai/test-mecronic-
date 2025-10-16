@@ -3,6 +3,7 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { apiFetch } from '@/lib/api';
 import { AlertCircle, ArrowLeft, Check } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -19,13 +20,12 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { LoaderCircleIcon } from 'lucide-react';
-// import { RecaptchaPopover } from '@/components/common/recaptcha-popover';
 
 export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
-  const [showRecaptcha, setShowRecaptcha] = useState(false);
+  
 
   const formSchema = z.object({
     email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -43,23 +43,17 @@ export default function Page() {
     const result = await form.trigger();
     if (!result) return;
 
-    setShowRecaptcha(true);
-  };
-
-  const handleVerifiedSubmit = async (token: string) => {
     try {
       const values = form.getValues();
 
       setIsProcessing(true);
       setError(null);
       setSuccess(null);
-      setShowRecaptcha(false);
 
       const response = await apiFetch('/api/auth/reset-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-recaptcha-token': token,
         },
         body: JSON.stringify(values),
       });
@@ -134,27 +128,12 @@ export default function Page() {
             )}
           />
 
-          {/* <RecaptchaPopover
-            open={showRecaptcha}
-            onOpenChange={(open) => {
-              if (!open) {
-                setShowRecaptcha(false);
-              }
-            }}
-            onVerify={handleVerifiedSubmit}
-            trigger={
-              <Button
-                type="submit"
-                disabled={!!success || isProcessing}
-                className="w-full"
-              >
-                {isProcessing ? <LoaderCircleIcon className="animate-spin" /> : null}
-                Submit
-              </Button>
-            }
-          /> */}
-
           <div className="space-y-3">
+            <Button type="submit" disabled={!!success || isProcessing} className="w-full">
+              {isProcessing ? <LoaderCircleIcon className="animate-spin" /> : null}
+              Submit
+            </Button>
+
             <Button type="button" variant="outline" className="w-full" asChild>
               <Link href="/signin">
                 <ArrowLeft className="size-3.5" /> Back
